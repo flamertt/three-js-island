@@ -4,9 +4,10 @@ import * as M from '../assets/models'
 export const SKYSCRAPER_MODELS = [M.skyA, M.skyB, M.skyC, M.skyD, M.skyE]
 export const COMMERCIAL_MODELS = [M.comA, M.comB, M.comC, M.comD, M.comE, M.comF]
 export const SUBURBAN_MODELS   = [M.subA, M.subB, M.subC, M.subD, M.subE, M.subF]
+// Normal şehir trafiği — F1/race ve traktör gibi alakasız modeller çıkarıldı
 export const VEHICLE_MODELS    = [
-  M.sedan, M.taxi, M.police, M.van, M.delivery, M.suv,
-  M.truck, M.sedanSports, M.hatchback, M.suvLuxury, M.raceCar, M.garbageTruck, M.tractor,
+  M.sedan, M.taxi, M.van, M.delivery, M.suv,
+  M.truck, M.sedanSports, M.hatchback, M.suvLuxury, M.garbageTruck,
 ]
 // Acil durum araçları (daha hızlı davranış)
 export const EMERGENCY_MODELS  = [M.ambulance, M.firetruck, M.police]
@@ -16,7 +17,7 @@ export const TREE_MODELS       = [M.treePineA, M.treePineB, M.treeTall]
 // Şehir genişliğine göre görünür olmaları için büyük tutuldu
 export const SKYSCRAPER_SCALE = 5.0
 export const COMMERCIAL_SCALE = 4.0
-export const SUBURBAN_SCALE   = 3.0
+export const SUBURBAN_SCALE   = 3.6
 
 // ─── Bina ölçeği (rng'siz, deterministik) ────────────────────────────────────
 // Hem render (OsmBuilding) hem yerleşim (parser) aynı ölçeği kullanır ki
@@ -39,7 +40,9 @@ export function buildingScale(
   if (idSlot < 10 || levels >= 3 || isCommercialTag)
     return { kind: 'commercial', scale: Math.min(Math.max(s * 1.4, 2.0), COMMERCIAL_SCALE * 1.3) }
 
-  return { kind: 'suburban', scale: Math.min(Math.max(s * 1.5, 1.4), SUBURBAN_SCALE * 1.2) }
+  // İnsan (~4 birim) ve araçlara göre orantılı dursun diye taban büyütüldü.
+  // Ayak-izi (= scale×1.05) parser tarafından yoldan ittirilir → yola taşmaz.
+  return { kind: 'suburban', scale: Math.min(Math.max(s * 1.9, 2.4), SUBURBAN_SCALE * 1.2) }
 }
 
 // Model ayak izi ~ scale × MODEL_HALF; köşegen için biraz pay → taşma garantili.

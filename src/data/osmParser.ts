@@ -78,6 +78,63 @@ function filterByFootprint(buildings: BuildingEntity[], maxCount: number, gap = 
   return kept
 }
 
+// ─── Bina-bina ayırma (iç içe geçenleri ittele) ──────────────────────────────
+// pushOffRoads yoldan kaçarken binaları üst üste itebilir. Birkaç gevşeme
+// geçişiyle, ayak-izleri çakışan çiftleri normal yönde aralarına boşluk açacak
+// şekilde iter. Grid ile O(n).
+function separateBuildings(buildings: BuildingEntity[], gap = 0.8, passes = 8): BuildingEntity[] {
+  const arr = buildings.map((b) => ({
+    b,
+    x: b.center[0],
+    z: b.center[1],
+    r: buildingFootprintRadius(buildingScale(b.area, b.levels, b.id, b.tags.building ?? '').scale),
+  }))
+  const CELL = 16
+  for (let pass = 0; pass < passes; pass++) {
+    const grid = new Map<string, number[]>()
+    const gk = (x: number, z: number) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`
+    arr.forEach((a, i) => {
+      const k = gk(a.x, a.z)
+      if (!grid.has(k)) grid.set(k, [])
+      grid.get(k)!.push(i)
+    })
+    let moved = false
+    for (let i = 0; i < arr.length; i++) {
+      const a = arr[i]
+      const gx = Math.floor(a.x / CELL), gz = Math.floor(a.z / CELL)
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+        const bucket = grid.get(`${gx + dx},${gz + dz}`)
+        if (!bucket) continue
+        for (const j of bucket) {
+          if (j <= i) continue
+          const c = arr[j]
+          let nx = a.x - c.x, nz = a.z - c.z
+          let d = Math.hypot(nx, nz)
+          const minD = a.r + c.r + gap
+          if (d < minD) {
+            if (d < 1e-3) { nx = Math.cos(i * 2.4); nz = Math.sin(i * 2.4); d = 1 }
+            else { nx /= d; nz /= d }
+            const push = (minD - d) / 2
+            a.x += nx * push; a.z += nz * push
+            c.x -= nx * push; c.z -= nz * push
+            moved = true
+          }
+        }
+      }
+    }
+    // şehir içinde / pist-tarla dışında tut
+    for (const a of arr) {
+      const dc = Math.hypot(a.x, a.z)
+      if (dc > CITY_RADIUS) { a.x = (a.x / dc) * CITY_RADIUS; a.z = (a.z / dc) * CITY_RADIUS }
+    }
+    if (!moved) break
+  }
+  return arr.map((a) =>
+    a.x === a.b.center[0] && a.z === a.b.center[1]
+      ? a.b : { ...a.b, center: [a.x, a.z] as [number, number] },
+  )
+}
+
 const dist2 = (x: number, z: number) => x * x + z * z
 
 // ─── Polyline'ı daireye kırp ──────────────────────────────────────────────────
@@ -285,8 +342,13 @@ export function parseCityData(geojson: GeoJSONCollection, bbox: BBox = CITY_BBOX
   // (binlerce bina yerine 700 üzerinde O(n×seg) çalışır).
   const segs    = collectSegments(roads)
   const spaced  = filterByFootprint(inCircle, 700, 1.0)
-  const nudged  = pushOffRoads(spaced, segs)
-  const buildings = nudged.map((b) => ({
+  // Yoldan-itme ve bina-bina ayırmayı dönüşümlü uygula: ikisi de sağlanana yaklaş
+  let placed = pushOffRoads(spaced, segs)
+  placed = separateBuildings(placed, 0.8, 6)
+  placed = pushOffRoads(placed, segs)
+  placed = separateBuildings(placed, 0.8, 4)
+  placed = pushOffRoads(placed, segs)   // SON işlem yol-itme → yola taşma kalmaz
+  const buildings = placed.map((b) => ({
     ...b,
     rot: nearestRoadAngle(b.center[0], b.center[1], segs),
   }))

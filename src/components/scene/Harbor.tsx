@@ -200,15 +200,15 @@ export default function Harbor({ night = false }: { night?: boolean }) {
         <Model url={trainContBlue}  position={[14, 0.2, -16]} rotation={[0, 0, 0]} scale={4.2} />
         <Model url={trainContGreen} position={[14, 0.2,  -4]} rotation={[0, 0, 0]} scale={4.2} />
         <Model url={trainContRed}   position={[14, 0.2,   8]} rotation={[0, 0, 0]} scale={4.2} />
-        {/* yanaşmış kargo gemisi + römorkör */}
-        <Model url={shipCargoA} position={[0,  -0.5, 38]} rotation={[0, 0, 0]} scale={SHIP_SCALE} />
-        <Model url={boatTugA}   position={[16, -0.4, 30]} rotation={[0, 0.4, 0]} scale={BOAT_SCALE} />
+        {/* yanaşmış kargo gemisi + römorkör — rıhtımın YANINDA (deniz tarafı) */}
+        <Model url={shipCargoA} position={[30, -0.5,  2]} rotation={[0, 0, 0]} scale={SHIP_SCALE} />
+        <Model url={boatTugA}   position={[28, -0.4, -16]} rotation={[0, 0, 0]} scale={BOAT_SCALE} />
       </HarborZone>
 
       {/* ════════ YOLCU LİMANI (cam terminal) ════════ */}
       <HarborZone angle={ANG.passenger} deckW={30} deckD={40} night={night}>
         <Terminal w={20} d={12} />
-        <Model url={shipLiner} position={[0, -0.5, 34]} rotation={[0, 0, 0]} scale={SHIP_SCALE} />
+        <Model url={shipLiner} position={[28, -0.5, 0]} rotation={[0, 0, 0]} scale={SHIP_SCALE} />
         <Bollard x={-10} z={-14} />
         <Bollard x={ 10} z={-14} />
       </HarborZone>
@@ -216,9 +216,9 @@ export default function Harbor({ night = false }: { night?: boolean }) {
       {/* ════════ MARİNA (küçük tekneler — güvertenin YANINDA, suda) ════════ */}
       {/* deck: w=22 (x ±11), d=30 (z ±15). Tekneler x>11 veya z>15 → su. */}
       <HarborZone angle={ANG.marina} deckW={22} deckD={30} night={night}>
-        <Model url={boatHouseA}   position={[-17, -0.4,  2]} rotation={[0, Math.PI / 2, 0]} scale={BOAT_SCALE * 1.2} />
-        <Model url={boatRowLarge} position={[ 17, -0.4,  2]} rotation={[0, -Math.PI / 2, 0]} scale={BOAT_SCALE} />
-        <Model url={boatTugA}     position={[  0, -0.4, 22]} rotation={[0, 0, 0]} scale={BOAT_SCALE} />
+        <Model url={boatHouseA}   position={[ 16, -0.4, -6]} rotation={[0, 0, 0]} scale={BOAT_SCALE * 1.2} />
+        <Model url={boatRowLarge} position={[ 16, -0.4,  6]} rotation={[0, 0, 0]} scale={BOAT_SCALE} />
+        <Model url={boatTugA}     position={[-16, -0.4,  0]} rotation={[0, 0, 0]} scale={BOAT_SCALE} />
       </HarborZone>
 
       {/* ════════ Şamandıralar (liman girişi işaretleri) ════════ */}

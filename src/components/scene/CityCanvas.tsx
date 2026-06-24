@@ -15,6 +15,12 @@ import HUD from '../ui/HUD'
 import LoadingScreen from '../ui/LoadingScreen'
 import RoadEditor, { nearestRoadId, type EditTool } from '../editor/RoadEditor'
 import EditorPanel from '../editor/EditorPanel'
+import { SunIcon, MoonIcon, PencilIcon, PersonIcon } from '../ui/icons'
+import Player, { type Obstacle, type Prompt } from '../city/Player'
+import HeliController from '../city/HeliController'
+import CarController from '../city/CarController'
+import { buildingScale } from '../../constants/cityLayout'
+import { setHijacked } from '../../utils/traffic'
 import { useCityData } from '../../hooks/useCityData'
 import { useRoadEdits } from '../../hooks/useRoadEdits'
 import type { CityData } from '../../types/osm'
@@ -84,6 +90,11 @@ export default function CityCanvas() {
   const [tool, setTool] = useState<EditTool>('delete')
   const [draft, setDraft] = useState<[number, number][]>([])
   const [night, setNight] = useState(false)
+  // 'off' serbest kamera · 'foot' yaya · 'heli' helikopter · 'car' araba
+  const [mode, setMode] = useState<'off' | 'foot' | 'heli' | 'car'>('off')
+  const [spawn, setSpawn] = useState<[number, number]>([0, 50])
+  const [prompt, setPrompt] = useState<Prompt>(null)
+  const [car, setCar] = useState<{ x: number; z: number; rot: number; url: string }>({ x: 0, z: 0, rot: 0, url: '' })
 
   // Temel yolların segmentleri (kullanıcı yollarının kalınlığını eşlemek için)
   const baseSegs = useMemo(() => {
@@ -184,6 +195,20 @@ export default function CityCanvas() {
     }
   }, [cityData, removed, added, snapEnd])
 
+  // Yaya çarpışması için bina engelleri (merkez + ayak-izi yarıçapı)
+  const obstacles = useMemo<Obstacle[]>(() => {
+    if (!editedCity) return []
+    return editedCity.buildings.map((b) => {
+      const { kind, scale } = buildingScale(b.area, b.levels, b.id, b.tags.building ?? '')
+      // Çarpışma = gerçek taban yarıçapına yakın (dar). Yola-itme için kullanılan
+      // buildingFootprintRadius köşegen+pay ile geniştir; aralardan geçişi
+      // engellememek için onun yerine sıkı bir değer kullan.
+      // h = yaklaşık dünya yüksekliği (helikopterin üstünden uçabilmesi için).
+      const hFactor = kind === 'sky' ? 2.4 : kind === 'commercial' ? 1.7 : 1.0
+      return { x: b.center[0], z: b.center[1], r: scale * 0.5, h: scale * hFactor }
+    })
+  }, [editedCity])
+
   const handlePick = useCallback((x: number, z: number) => {
     if (tool === 'delete') {
       const id = nearestRoadId(x, z, editedCity?.roads ?? [], 10)
@@ -215,11 +240,11 @@ export default function CityCanvas() {
         <Lighting night={night} />
 
         <Suspense fallback={<Fallback />}>
-          <Ocean />
+          <Ocean night={night} />
           <Ground />
           <Ships night={night} />
           <Harbor night={night} />
-          <Helipad />
+          <Helipad piloting={mode === 'heli'} />
 
           {editedCity && (
             <>
@@ -227,65 +252,134 @@ export default function CityCanvas() {
               <OsmVehicles cityData={editedCity} night={night} />
             </>
           )}
+
+        </Suspense>
+
+        {/* Oynanış kontrolcüleri AYRI Suspense'te → biri tek-kare yeniden
+            yüklenince ana sahne donmaz (suspense thrash önlenir). */}
+        <Suspense fallback={<Fallback />}>
+          {mode === 'foot' && (
+            <Player
+              start={spawn}
+              obstacles={obstacles}
+              onBoardHeli={() => { setPrompt(null); setMode('heli') }}
+              onBoardCar={(i, x, z, rot, url) => {
+                setHijacked(i)
+                setCar({ x, z, rot, url })
+                setPrompt(null)
+                setMode('car')
+              }}
+              onPromptChange={setPrompt}
+            />
+          )}
+          {mode === 'heli' && (
+            <HeliController
+              start={[0, 0]}
+              obstacles={obstacles}
+              onExit={(x, z) => { setSpawn([x, z + 8]); setMode('foot') }}
+            />
+          )}
+          {mode === 'car' && car.url && (
+            <CarController
+              start={[car.x, car.z]}
+              startRot={car.rot}
+              url={car.url}
+              obstacles={obstacles}
+              onExit={(x, z) => {
+                setHijacked(-1)
+                setSpawn([x + 4, z])
+                setMode('foot')
+              }}
+            />
+          )}
         </Suspense>
 
         <RoadEditor
-          active={editOpen}
+          active={editOpen && mode === 'off'}
           tool={tool}
           roads={editedCity?.roads ?? []}
           draft={draft}
           onPick={handlePick}
         />
 
-        <OrbitControls
-          makeDefault
-          target={[0, 0, 0]}
-          maxPolarAngle={Math.PI / 2.2}
-          minDistance={40}
-          maxDistance={750}
-          enableDamping
-          dampingFactor={0.05}
-          mouseButtons={{
-            LEFT: THREE.MOUSE.PAN,      // sol tık → gezme (pan)
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.ROTATE,  // sağ tık → döndürme (orbit)
-          }}
-        />
-        <CameraRig />
+        {/* Oynanış modunda kamera karaktere/helikoptere kilitli → OrbitControls kapalı */}
+        {mode === 'off' && (
+          <>
+            <OrbitControls
+              makeDefault
+              target={[0, 0, 0]}
+              maxPolarAngle={Math.PI / 2.2}
+              minDistance={40}
+              maxDistance={750}
+              enableDamping
+              dampingFactor={0.05}
+              mouseButtons={{
+                LEFT: THREE.MOUSE.PAN,      // sol tık → gezme (pan)
+                MIDDLE: THREE.MOUSE.DOLLY,
+                RIGHT: THREE.MOUSE.ROTATE,  // sağ tık → döndürme (orbit)
+              }}
+            />
+            <CameraRig />
+          </>
+        )}
       </Canvas>
 
       {status === 'ready' && <HUD />}
 
-      {status === 'ready' && (
-        <button
-          onClick={() => setNight((v) => !v)}
-          style={{
-            position: 'absolute', top: 16, left: 16, zIndex: 20,
-            padding: '9px 14px', border: 'none', borderRadius: 10,
-            background: 'rgba(20,24,30,0.86)', color: '#e8eef5',
-            font: '600 13px system-ui, sans-serif', cursor: 'pointer',
-            backdropFilter: 'blur(8px)', boxShadow: '0 6px 24px rgba(0,0,0,0.4)',
-          }}
-        >
-          {night ? '☀️ Gündüz' : '🌙 Gece'}
-        </button>
+      {/* GTA tarzı binme balonu (yaya modunda, yakındayken) */}
+      {mode === 'foot' && prompt && (
+        <div className={styles.prompt} key={prompt}>
+          <span className={styles.promptKey}>{prompt === 'heli' ? 'E' : 'F'}</span>
+          <span className={styles.promptText}>
+            {prompt === 'heli' ? 'Helikoptere bin' : 'Arabaya bin'}
+          </span>
+        </div>
       )}
 
       {status === 'ready' && (
-        <EditorPanel
-          open={editOpen}
-          setOpen={setEditOpen}
-          tool={tool}
-          setTool={setTool}
-          draftLen={draft.length}
-          removedCount={removed.size}
-          addedCount={added.length}
-          onFinishRoad={finishRoad}
-          onCancelDraft={() => setDraft([])}
-          onUndoAdd={undoAdd}
-          onRestoreRemoved={restoreRemoved}
-          onResetAll={() => { resetAll(); setDraft([]) }}
-        />
+        <div className={styles.topRight}>
+          <div className={styles.iconRow}>
+            <button
+              className={styles.iconBtn}
+              onClick={() => setNight((v) => !v)}
+              title={night ? 'Gündüz' : 'Gece'}
+              aria-label={night ? 'Gündüz' : 'Gece'}
+            >
+              {night ? <SunIcon /> : <MoonIcon />}
+            </button>
+            <button
+              className={`${styles.iconBtn} ${editOpen ? styles.iconActive : ''}`}
+              onClick={() => setEditOpen((v) => !v)}
+              title="Yol Düzenle"
+              aria-label="Yol Düzenle"
+            >
+              <PencilIcon />
+            </button>
+            <button
+              className={`${styles.iconBtn} ${mode !== 'off' ? styles.iconActive : ''}`}
+              onClick={() => setMode((m) => (m === 'off' ? 'foot' : 'off'))}
+              title="Karakter modu (WASD + Space, helikopter için E)"
+              aria-label="Karakter modu"
+            >
+              <PersonIcon />
+            </button>
+          </div>
+
+          {editOpen && (
+            <EditorPanel
+              tool={tool}
+              setTool={setTool}
+              draftLen={draft.length}
+              removedCount={removed.size}
+              addedCount={added.length}
+              onFinishRoad={finishRoad}
+              onCancelDraft={() => setDraft([])}
+              onUndoAdd={undoAdd}
+              onRestoreRemoved={restoreRemoved}
+              onResetAll={() => { resetAll(); setDraft([]) }}
+            />
+          )}
+        </div>
       )}
     </div>
   )

@@ -6,6 +6,18 @@ const PARASOL_COLORS = ['#e8503a', '#3a7be8', '#f0b429', '#2ecc71', '#e84393']
 const TOWEL_COLORS   = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a78bfa', '#ffffff']
 const CLUSTERS = 26
 
+// Liman bölgeleri kıyıyı işgal eder (iskele + yanaşmış gemiler/tekneler suya
+// uzanır). Bu açılara denk gelen sahil kümeleri iskele/gemi yanında "denizde"
+// görünür → bu açıların çevresini boş bırak.
+const HARBOR_ANGLES = [0, Math.PI / 2, Math.PI]
+const HARBOR_CLEAR = 0.32   // rad — liman açısı çevresinde sahil eşyası yok
+function nearHarbor(theta: number): boolean {
+  return HARBOR_ANGLES.some((h) => {
+    const d = Math.abs(((theta - h + Math.PI) % (2 * Math.PI)) - Math.PI)
+    return d < HARBOR_CLEAR
+  })
+}
+
 // Bir parçayı, KENDİ açısının kum bandına kutupsal olarak yerleştir.
 // frac ∈ [0,1] → kum bandı içindeki radyal konum (0=çim kenarı, 1=su kenarı).
 // Böylece organik/yamuk kıyıda her parça daima kumda kalır.
@@ -60,11 +72,13 @@ export default function BeachProps() {
     const out: { a: number; pc: string; tc: string; ball: boolean }[] = []
     for (let i = 0; i < CLUSTERS; i++) {
       const a = (i / CLUSTERS) * Math.PI * 2 + (rng() - 0.5) * 0.1
+      const ball = rng() < 0.4   // rng sırasını koru
+      if (nearHarbor(a)) continue // liman bölgesi → atla
       out.push({
         a,
         pc: PARASOL_COLORS[i % PARASOL_COLORS.length],
         tc: TOWEL_COLORS[(i * 3) % TOWEL_COLORS.length],
-        ball: rng() < 0.4,
+        ball,
       })
     }
     return out

@@ -1,8 +1,9 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { VEHICLE_SCALE } from '../../constants/cityLayout'
+import { setVehPos, clearVehPos, getHijacked } from '../../utils/traffic'
 
 // Ağ düğümü: bir kavşakta buluşan yol uçları
 export interface RoadNode {
@@ -43,7 +44,7 @@ function sampleArc(road: RoadNode, arcDist: number) {
   return { x: x1 + dx * lt, z: z1 + dz * lt, dx: dx / l, dz: dz / l }
 }
 
-export default function NetworkVehicle({ net, init, night = false }: { net: VehicleNet; init: VehicleInit; night?: boolean }) {
+export default function NetworkVehicle({ net, init, index, night = false }: { net: VehicleNet; init: VehicleInit; index: number; night?: boolean }) {
   const ref = useRef<THREE.Group>(null!)
   const { scene } = useGLTF(init.url)
   const cloned = useMemo(() => scene.clone(true), [scene])
@@ -51,7 +52,18 @@ export default function NetworkVehicle({ net, init, night = false }: { net: Vehi
   // mutable durum
   const st = useRef({ roadIdx: init.roadIdx, dir: init.dir, t: init.t })
 
+  // unmount → kayıt slotunu pasifleştir
+  useEffect(() => () => clearVehPos(index), [index])
+
   useFrame((_, dt) => {
+    // oyuncu bu aracı ele geçirdiyse gizle ve dur
+    if (index === getHijacked()) {
+      if (ref.current) ref.current.visible = false
+      clearVehPos(index)
+      return
+    }
+    if (ref.current && !ref.current.visible) ref.current.visible = true
+
     const s = st.current
     let road = net.roads[s.roadIdx]
     if (!road || road.total < 0.1) return
@@ -86,8 +98,11 @@ export default function NetworkVehicle({ net, init, night = false }: { net: Vehi
     const rx = fdz, rz = -fdx
     const off = road.width * 0.30
 
-    ref.current.position.set(p.x + rx * off, 0, p.z + rz * off)
-    ref.current.rotation.y = Math.atan2(fdx, fdz)
+    const wx = p.x + rx * off, wz = p.z + rz * off
+    const ry = Math.atan2(fdx, fdz)
+    ref.current.position.set(wx, 0.15, wz)  // tekerlekler yol yüzeyine otursun
+    ref.current.rotation.y = ry
+    setVehPos(index, wx, wz, ry, init.url)
   })
 
   return (

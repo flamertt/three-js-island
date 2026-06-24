@@ -1,9 +1,11 @@
 import type { EditTool } from './RoadEditor'
 import styles from './EditorPanel.module.css'
+import {
+  PencilIcon, TrashIcon, PlusIcon, CheckIcon, CloseIcon,
+  UndoIcon, RestoreIcon, ResetIcon,
+} from '../ui/icons'
 
 interface Props {
-  open: boolean
-  setOpen: (v: boolean) => void
   tool: EditTool
   setTool: (t: EditTool) => void
   draftLen: number
@@ -17,34 +19,26 @@ interface Props {
 }
 
 export default function EditorPanel({
-  open, setOpen, tool, setTool, draftLen,
+  tool, setTool, draftLen,
   removedCount, addedCount,
   onFinishRoad, onCancelDraft, onUndoAdd, onRestoreRemoved, onResetAll,
 }: Props) {
-  if (!open) {
-    return (
-      <button className={styles.toggle} onClick={() => setOpen(true)}>
-        ✏️ Yol Düzenle
-      </button>
-    )
-  }
-
   return (
     <div className={styles.panel}>
-      <p className={styles.title}>✏️ Yol Editörü</p>
+      <p className={styles.title}><PencilIcon size={16} /> Yol Editörü</p>
 
       <div className={styles.row}>
         <button
           className={`${styles.btn} ${tool === 'delete' ? styles.active : ''}`}
           onClick={() => setTool('delete')}
         >
-          🗑 Sil
+          <TrashIcon size={15} /> Sil
         </button>
         <button
           className={`${styles.btn} ${tool === 'add' ? styles.active : ''}`}
           onClick={() => setTool('add')}
         >
-          ➕ Ekle
+          <PlusIcon size={15} /> Ekle
         </button>
       </div>
 
@@ -63,10 +57,10 @@ export default function EditorPanel({
               onClick={onFinishRoad}
               disabled={draftLen < 2}
             >
-              ✓ Bitir ({draftLen})
+              <CheckIcon size={15} /> Bitir ({draftLen})
             </button>
             <button className={styles.btn} onClick={onCancelDraft} disabled={draftLen === 0}>
-              İptal
+              <CloseIcon size={15} /> İptal
             </button>
           </div>
         </>
@@ -74,25 +68,21 @@ export default function EditorPanel({
 
       <div className={styles.row}>
         <button className={styles.btn} onClick={onUndoAdd} disabled={addedCount === 0}>
-          ↶ Son ekleneni sil
+          <UndoIcon size={15} /> Son ekleneni sil
         </button>
       </div>
       <div className={styles.row}>
         <button className={styles.btn} onClick={onRestoreRemoved} disabled={removedCount === 0}>
-          Silinenleri geri al
+          <RestoreIcon size={15} /> Silinenleri geri al
         </button>
       </div>
       <div className={styles.row}>
         <button className={`${styles.btn} ${styles.danger}`} onClick={onResetAll}>
-          Tümünü sıfırla
+          <ResetIcon size={15} /> Tümünü sıfırla
         </button>
       </div>
 
       <p className={styles.stat}>Silinen: {removedCount} · Eklenen: {addedCount}</p>
-
-      <div className={styles.row} style={{ marginTop: 4 }}>
-        <button className={styles.btn} onClick={() => setOpen(false)}>Kapat</button>
-      </div>
     </div>
   )
 }

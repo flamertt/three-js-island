@@ -46,6 +46,7 @@ const FRAG = /* glsl */`
   uniform float uTime;
   uniform vec3  uSunDir;
   uniform vec3  uCamPos;
+  uniform float uNight;
   varying vec3  vWorldPos;
   varying float vElevation;
 
@@ -110,11 +111,15 @@ const FRAG = /* glsl */`
     foam = clamp(foam, 0.0, 1.0);
     col = mix(col, vec3(0.92, 0.96, 1.0), foam * 0.85);
 
+    // Gece: deniz kararır, gece mavisi taban + sönük ay parıltısı
+    vec3 nightCol = col * 0.14 + vec3(0.01, 0.03, 0.075);
+    col = mix(col, nightCol, uNight);
+
     gl_FragColor = vec4(col, 1.0);
   }
 `
 
-export default function Ocean() {
+export default function Ocean({ night = false }: { night?: boolean }) {
   const matRef  = useRef<THREE.ShaderMaterial>(null!)
 
   const material = useMemo(
@@ -124,6 +129,7 @@ export default function Ocean() {
           uTime:   { value: 0 },
           uSunDir: { value: new THREE.Vector3(200, 120, 60).normalize() },
           uCamPos: { value: new THREE.Vector3() },
+          uNight:  { value: 0 },
         },
         vertexShader: VERT,
         fragmentShader: FRAG,
@@ -136,6 +142,10 @@ export default function Ocean() {
   useFrame(({ clock, camera }) => {
     material.uniforms.uTime.value = clock.getElapsedTime()
     ;(material.uniforms.uCamPos.value as THREE.Vector3).copy(camera.position)
+    material.uniforms.uNight.value = night ? 1 : 0
+    ;(material.uniforms.uSunDir.value as THREE.Vector3)
+      .set(...(night ? [-80, -10, -60] : [200, 120, 60]) as [number, number, number])
+      .normalize()
   })
 
   return (

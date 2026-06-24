@@ -9,6 +9,12 @@ interface Props {
 
 const MAIN_ROAD_TYPES = new Set(['primary', 'secondary', 'tertiary'])
 
+// Çizilecek/sürülecek yol: ana yol tipleri + kullanıcının eklediği yollar.
+// (Araçlar da aynı kümede gezer → her sürülen yol mutlaka çizilir, araba yol
+// dışına çıkmış gibi görünmez.)
+const isRoadVisible = (r: { type: string; id: string }) =>
+  MAIN_ROAD_TYPES.has(r.type) || r.id.startsWith('user-')
+
 // Bir yol polylinesı için miter köşeli kesintisiz şerit geometrisi üret.
 // halfOf: yol tipine göre yarı-genişlik; y: yükseklik; roadYBump: çakışan
 // farklı yolları y'de ayırmak için kademe.
@@ -24,7 +30,7 @@ function buildRibbon(
   let roadIdx = 0
 
   for (const road of roads) {
-    if (!MAIN_ROAD_TYPES.has(road.type)) continue
+    if (!isRoadVisible(road)) continue
     const pts = road.points
     if (pts.length < 2) continue
     const half = halfOf(road.type)
@@ -79,7 +85,7 @@ function buildRibbon(
 // Bir yolun ucu başka bir yola değiyorsa (çapraz/T/Y birleşme) oraya yuvarlak
 // asfalt disk koyar → sert köşe/boşluk yerine yumuşak kavşak.
 function buildJunctions(roads: RoadSegment[]): THREE.BufferGeometry | null {
-  const main = roads.filter((r) => MAIN_ROAD_TYPES.has(r.type) && r.points.length >= 2)
+  const main = roads.filter((r) => isRoadVisible(r) && r.points.length >= 2)
   const halfOf = (t: string) => (ROAD_WIDTHS[t] ?? 3.2) / 2
 
   // Segment uzamsal ızgarası (hızlı yakınlık sorgusu)

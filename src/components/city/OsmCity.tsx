@@ -47,7 +47,7 @@ export default function OsmCity({ cityData, night = false }: Props) {
       <CityProps cityData={cityData} />
 
       {/* Yol kenarı sokak lambaları */}
-      <StreetLamps roads={roads} />
+      <StreetLamps roads={roads} night={night} />
 
       {/* Tarım/park alanı */}
       <Farm />

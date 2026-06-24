@@ -9,7 +9,9 @@ import type { CityData } from '../../types/osm'
 interface Props { cityData: CityData; night?: boolean }
 
 const VEHICLE_ROAD_TYPES = ['primary', 'secondary', 'tertiary']
-const SPEEDS: Record<string, number> = { primary: 7, secondary: 5, tertiary: 4 }
+// Tüm araçlar AYNI hızda → aynı şeritte sabit mesafe korunur, biri diğerine
+// yetişip içinden geçmez.
+const UNIFORM_SPEED = 6
 const MAX_VEHICLES = 60
 const MIN_ROAD_LEN = 12
 
@@ -32,7 +34,7 @@ export default function OsmVehicles({ cityData, night = false }: Props) {
       return {
         pts, cum, total: cum[cum.length - 1],
         width: ROAD_WIDTHS[r.type] ?? 3.2,
-        speed: SPEEDS[r.type] ?? 5,
+        speed: UNIFORM_SPEED,
       }
     })
 
@@ -62,7 +64,7 @@ export default function OsmVehicles({ cityData, night = false }: Props) {
       return {
         url: emergency ? pickRandom(EMERGENCY_MODELS, rng) : pickRandom(VEHICLE_MODELS, rng),
         roadIdx: i, dir: rng() < 0.5 ? 1 : -1, t: rng(),
-        speedMul: emergency ? 1.5 : 1,
+        speedMul: 1,   // tüm araçlar aynı hız (acil araçlar dahil)
       }
     }
     const inits: VehicleInit[] = []
@@ -77,7 +79,7 @@ export default function OsmVehicles({ cityData, night = false }: Props) {
 
   return (
     <>
-      {inits.map((init, i) => <NetworkVehicle key={i} net={net} init={init} night={night} />)}
+      {inits.map((init, i) => <NetworkVehicle key={i} index={i} net={net} init={init} night={night} />)}
     </>
   )
 }
