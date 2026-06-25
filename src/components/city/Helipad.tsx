@@ -5,6 +5,7 @@ interface Props {
   position?: [number, number, number]
   deckR?: number
   piloting?: boolean   // pilotlu uçuştayken pisteki statik helikopteri gizle
+  night?: boolean
 }
 
 function HMark({ y, s }: { y: number; s: number }) {
@@ -18,7 +19,7 @@ function HMark({ y, s }: { y: number; s: number }) {
   )
 }
 
-export default function Helipad({ position = [0, 0, 0], deckR = 26, piloting = false }: Props) {
+export default function Helipad({ position = [0, 0, 0], deckR = 26, piloting = false, night = false }: Props) {
   const [x, , z] = position
   const lights = 14
   const padY = 0.3   // yere yakın, ince saha
@@ -48,7 +49,7 @@ export default function Helipad({ position = [0, 0, 0], deckR = 26, piloting = f
       {/* helikopter (büyük) — pilotlu uçuşta gizli */}
       {!piloting && (
         <group position={[0, padY, 0]} scale={1.8}>
-          <HelicopterModel />
+          <HelicopterModel night={night} />
         </group>
       )}
     </group>

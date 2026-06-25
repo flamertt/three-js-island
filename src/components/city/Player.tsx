@@ -66,9 +66,10 @@ export default function Player({
 
   // klavye
   useEffect(() => {
+    const SCROLL_KEYS = ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
     const dn = (e: KeyboardEvent) => {
       keys.current[e.code] = true
-      if (e.code === 'Space') e.preventDefault()
+      if (SCROLL_KEYS.includes(e.code)) e.preventDefault()
       // helipad merkezine yakınsa E ile helikoptere bin
       if (e.code === 'KeyE') {
         if (Math.hypot(pos.current.x, pos.current.z) < BOARD_DIST) {

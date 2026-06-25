@@ -5,6 +5,29 @@ import * as THREE from 'three'
 import { VEHICLE_SCALE } from '../../constants/cityLayout'
 import { setVehPos, clearVehPos, getHijacked } from '../../utils/traffic'
 
+// Öne düşen sıcak far ışık havuzu — tüm araçlar paylaşır (tek doku/materyal,
+// 60 gerçek ışık yerine performanslı).
+let _headlightMat: THREE.MeshBasicMaterial | null = null
+function headlightMat(): THREE.MeshBasicMaterial {
+  if (_headlightMat) return _headlightMat
+  const s = 128
+  const c = document.createElement('canvas')
+  c.width = c.height = s
+  const ctx = c.getContext('2d')!
+  const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2)
+  g.addColorStop(0, 'rgba(255,243,207,0.85)')
+  g.addColorStop(0.5, 'rgba(255,235,170,0.35)')
+  g.addColorStop(1, 'rgba(255,230,150,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, s, s)
+  const tex = new THREE.CanvasTexture(c)
+  _headlightMat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, toneMapped: false,
+  })
+  return _headlightMat
+}
+
 // Ağ düğümü: bir kavşakta buluşan yol uçları
 export interface RoadNode {
   pts: [number, number][]
@@ -108,6 +131,15 @@ export default function NetworkVehicle({ net, init, index, night = false }: { ne
   return (
     <group ref={ref}>
       <primitive object={cloned} scale={VEHICLE_SCALE} />
+      {night && (
+        <mesh
+          material={headlightMat()}
+          position={[0, 0.06, 6]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[6, 13]} />
+        </mesh>
+      )}
       {night && (
         <group scale={VEHICLE_SCALE}>
           {/* farlar (ön +z, beyaz) */}

@@ -20,10 +20,12 @@ const ROOF_CLEAR = 1     // bina çatısının bu kadar üstüne kadar çarpış
 export default function HeliController({
   start = [0, 0] as [number, number],
   obstacles = [],
+  night = false,
   onExit,
 }: {
   start?: [number, number]
   obstacles?: Obstacle[]
+  night?: boolean
   onExit?: (x: number, z: number) => void
 }) {
   const group = useRef<THREE.Group>(null!)
@@ -41,9 +43,10 @@ export default function HeliController({
   onExitRef.current = onExit
 
   useEffect(() => {
+    const SCROLL_KEYS = ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
     const dn = (e: KeyboardEvent) => {
       keys.current[e.code] = true
-      if (e.code === 'Space') e.preventDefault()
+      if (SCROLL_KEYS.includes(e.code)) e.preventDefault()
       if (e.code === 'KeyE') {
         // yere yakınsa in
         if (pos.current.y - GROUND < EXIT_MAX_ALT) {
@@ -61,6 +64,13 @@ export default function HeliController({
   }, [])
 
   const camPos = useMemo(() => new THREE.Vector3(), [])
+
+  // gece arama feneri: spotlight hedefini aşağı/öne bağla
+  const spotRef = useRef<THREE.SpotLight>(null!)
+  const targetRef = useRef<THREE.Object3D>(null!)
+  useEffect(() => {
+    if (spotRef.current && targetRef.current) spotRef.current.target = targetRef.current
+  }, [night])
 
   useFrame((_, dtRaw) => {
     if (!group.current) return
@@ -126,8 +136,25 @@ export default function HeliController({
   return (
     <group ref={group}>
       <group scale={HELI_SCALE}>
-        <HelicopterModel spin={2} />
+        <HelicopterModel spin={2} night={night} />
       </group>
+
+      {night && (
+        <>
+          {/* aşağı/öne bakan arama feneri — zemini aydınlatır */}
+          <spotLight
+            ref={spotRef}
+            position={[0, 0.5, 1.5]}
+            angle={0.5}
+            penumbra={0.5}
+            intensity={900}
+            distance={260}
+            decay={1.1}
+            color="#fff3cf"
+          />
+          <object3D ref={targetRef} position={[0, -60, 18]} />
+        </>
+      )}
     </group>
   )
 }

@@ -23,12 +23,14 @@ export default function CarController({
   startRot = 0,
   url,
   obstacles = [],
+  night = false,
   onExit,
 }: {
   start?: [number, number]
   startRot?: number
   url: string
   obstacles?: Obstacle[]
+  night?: boolean
   onExit?: (x: number, z: number) => void
 }) {
   const group = useRef<THREE.Group>(null!)
@@ -63,8 +65,11 @@ export default function CarController({
   onExitRef.current = onExit
 
   useEffect(() => {
+    const SCROLL_KEYS = ['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
     const dn = (e: KeyboardEvent) => {
       keys.current[e.code] = true
+      // Space/oklar sayfayı kaydırmasın (canvas kayar, kamera/giriş bozulur)
+      if (SCROLL_KEYS.includes(e.code)) e.preventDefault()
       if (e.code === 'KeyF') onExitRef.current?.(pos.current.x, pos.current.z)
     }
     const up = (e: KeyboardEvent) => { keys.current[e.code] = false }
@@ -77,6 +82,13 @@ export default function CarController({
   }, [])
 
   const camPos = useMemo(() => new THREE.Vector3(), [])
+
+  // gece farları: spotlight hedefini araç önüne/aşağı bağla
+  const spotRef = useRef<THREE.SpotLight>(null!)
+  const targetRef = useRef<THREE.Object3D>(null!)
+  useEffect(() => {
+    if (spotRef.current && targetRef.current) spotRef.current.target = targetRef.current
+  }, [night])
 
   useFrame((_, dtRaw) => {
     if (!group.current) return
@@ -181,6 +193,32 @@ export default function CarController({
   return (
     <group ref={group}>
       <primitive object={cloned} scale={VEHICLE_SCALE} />
+
+      {night && (
+        <>
+          {/* ön farlar (parlak) */}
+          <mesh position={[0.45, 0.45, 1.05]}>
+            <sphereGeometry args={[0.13, 8, 8]} />
+            <meshStandardMaterial color="#fff" emissive="#fff4c0" emissiveIntensity={3} toneMapped={false} />
+          </mesh>
+          <mesh position={[-0.45, 0.45, 1.05]}>
+            <sphereGeometry args={[0.13, 8, 8]} />
+            <meshStandardMaterial color="#fff" emissive="#fff4c0" emissiveIntensity={3} toneMapped={false} />
+          </mesh>
+          {/* yolu aydınlatan ışık konisi (öne + aşağı) */}
+          <spotLight
+            ref={spotRef}
+            position={[0, 0.8, 1.1]}
+            angle={0.62}
+            penumbra={0.55}
+            intensity={160}
+            distance={55}
+            decay={1.4}
+            color="#fff3cf"
+          />
+          <object3D ref={targetRef} position={[0, -1.2, 22]} />
+        </>
+      )}
     </group>
   )
 }

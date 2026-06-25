@@ -244,7 +244,7 @@ export default function CityCanvas() {
           <Ground />
           <Ships night={night} />
           <Harbor night={night} />
-          <Helipad piloting={mode === 'heli'} />
+          <Helipad piloting={mode === 'heli'} night={night} />
 
           {editedCity && (
             <>
@@ -276,6 +276,7 @@ export default function CityCanvas() {
             <HeliController
               start={[0, 0]}
               obstacles={obstacles}
+              night={night}
               onExit={(x, z) => { setSpawn([x, z + 8]); setMode('foot') }}
             />
           )}
@@ -285,6 +286,7 @@ export default function CityCanvas() {
               startRot={car.rot}
               url={car.url}
               obstacles={obstacles}
+              night={night}
               onExit={(x, z) => {
                 setHijacked(-1)
                 setSpawn([x + 4, z])
